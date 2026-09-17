@@ -109,6 +109,13 @@ private const val NotchTailLengthFactor = 0.8f
  */
 private const val NotchLeftTrimFactor = 0.08f
 
+/**
+ * Trailing fraction of the path trimmed away when the LAST item is selected,
+ * mirroring [NotchLeftTrimFactor] so the red tail stops the same visual distance
+ * short of the right edge as it starts from the left edge on the first item.
+ */
+private const val NotchRightTrimFactor = NotchLeftTrimFactor
+
 /** Ellipse half-width as a fraction of the selected item's cell width. */
 private const val NotchWidthFactor = 0.62f
 
@@ -158,6 +165,9 @@ fun FloatingBottomNavBar(
     val targetCenterX = iconCentersInRoot[selectedItemId]?.let { iconCenter ->
         barLeftInRoot?.let { barLeft -> iconCenter - barLeft }
     }
+    // The right-side end trim only applies when the trailing item is selected,
+    // mirroring the always-on leading trim at the left side.
+    val trimRightEdge = items.lastOrNull()?.id == selectedItemId
 
     // Path-reveal animation. The geometry is fixed at the selected item; only the
     // amount of the red Path that has been drawn changes. A new Animatable is
@@ -235,6 +245,7 @@ fun FloatingBottomNavBar(
                     accent = AccentColor,
                     strokeWidth = NotchStrokeWidth.toPx(),
                     revealFraction = reveal.value,
+                    trimRightEdge = trimRightEdge,
                 )
             }
 
@@ -299,6 +310,7 @@ private fun DrawScope.drawSelectedNotch(
     accent: Color,
     strokeWidth: Float,
     revealFraction: Float,
+    trimRightEdge: Boolean,
 ) {
     val fraction = revealFraction.coerceIn(0f, 1f)
     if (fraction <= 0f) return
@@ -359,8 +371,16 @@ private fun DrawScope.drawSelectedNotch(
     val length = measure.length
     if (length <= 0f) return
     val trimStart = (indicatorWidth * NotchLeftTrimFactor).coerceIn(0f, length)
-    val revealEnd = trimStart + (length - trimStart) * fraction
-    val visiblePath = if (trimStart <= 0f && fraction >= 1f) {
+    // On the last item, omit the trailing end of the path by the same visual
+    // amount the leading end is trimmed on the first item. The ellipse geometry
+    // is untouched; only the maximum rendered distance is reduced.
+    val trimEnd = if (trimRightEdge) {
+        (length - indicatorWidth * NotchRightTrimFactor).coerceAtLeast(trimStart)
+    } else {
+        length
+    }
+    val revealEnd = trimStart + (trimEnd - trimStart) * fraction
+    val visiblePath = if (trimStart <= 0f && trimEnd >= length && fraction >= 1f) {
         path
     } else {
         val segment = android.graphics.Path()
