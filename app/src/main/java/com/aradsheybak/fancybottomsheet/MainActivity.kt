@@ -139,7 +139,6 @@ fun FancyNavApp() {
                     backStack.add(route)
                 }
             },
-            onLogoClick = {},
             modifier = Modifier.align(Alignment.BottomCenter),
         )
     }

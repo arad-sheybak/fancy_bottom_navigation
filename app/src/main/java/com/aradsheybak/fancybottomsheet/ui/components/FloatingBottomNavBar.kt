@@ -1,16 +1,16 @@
 package com.aradsheybak.fancybottomsheet.ui.components
 
+import android.graphics.PathMeasure
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -44,14 +43,14 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.asAndroidPath
+import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.addPathNodes
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -62,8 +61,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
 
 /**
  * A single destination shown inside [FloatingBottomNavBar].
@@ -84,15 +81,33 @@ private val BarColor = Color(0xFF1A1A1E)
 private val AccentColor = Color(0xFFE53946)
 private val UnselectedIconColor = Color(0xFF9A9AA5)
 private val UnselectedLabelColor = Color(0xFF8A8A94)
-private val LogoBackground = Color(0xFF242429)
 private val BarBorderColor = Color(0xFF2E2E36)
 
 private val BarHeight = 74.dp
-private val LogoSize = 44.dp
 private val ItemIconSize = 22.dp
 private val ItemHorizontalInset = 4.dp
 private val NotchStrokeWidth = 1.8.dp
 private val NotchTailEndInset = 12.dp
+
+// The pill background is widened on both sides by moving padding from the outer
+// container into the item row. Their sum is unchanged, so the items (and the
+// indicator geometry derived from them) stay exactly where they are while the
+// bar's left/right edges extend further out.
+private val BarHorizontalPadding = 10.dp
+private val ItemRowHorizontalPadding = 14.dp
+
+/** Extra pill width relative to its current width, split across both sides. */
+private const val BarWidthGrowth = 0.05f
+
+/** The right trailing section is this fraction of its previous length. */
+private const val NotchTailLengthFactor = 0.8f
+
+/**
+ * Leading fraction of the path trimmed away, relative to the indicator width.
+ * Previously 0.03f; increased by an additional 0.05f so the visible curve
+ * starts noticeably further right (the left fillet is now trimmed away).
+ */
+private const val NotchLeftTrimFactor = 0.08f
 
 /** Ellipse half-width as a fraction of the selected item's cell width. */
 private const val NotchWidthFactor = 0.62f
@@ -122,8 +137,6 @@ fun FloatingBottomNavBar(
     selectedItemId: String,
     onItemSelect: (NavItem) -> Unit,
     modifier: Modifier = Modifier,
-    logo: Painter? = null,
-    onLogoClick: (() -> Unit)? = null,
 ) {
     val pill = RoundedCornerShape(percent = 50)
     val itemBounds = remember { mutableStateMapOf<String, Rect>() }
@@ -146,43 +159,48 @@ fun FloatingBottomNavBar(
         barLeftInRoot?.let { barLeft -> iconCenter - barLeft }
     }
 
-    val leftAnim = remember { Animatable(0f) }
-    val rightAnim = remember { Animatable(0f) }
-    val centerAnim = remember { Animatable(0f) }
-    var indicatorReady by remember { mutableStateOf(false) }
-
-    LaunchedEffect(targetLeft, targetRight, targetCenterX) {
-        val left = targetLeft ?: return@LaunchedEffect
-        val right = targetRight ?: return@LaunchedEffect
-        val center = targetCenterX ?: return@LaunchedEffect
-        if (!indicatorReady) {
-            leftAnim.snapTo(left)
-            rightAnim.snapTo(right)
-            centerAnim.snapTo(center)
-            indicatorReady = true
+    // Path-reveal animation. The geometry is fixed at the selected item; only the
+    // amount of the red Path that has been drawn changes. A new Animatable is
+    // created for each selection so the reveal resets instantly (no flash) and
+    // any in-flight reveal is cancelled; the latest selection always wins.
+    var isInitialSelection by remember { mutableStateOf(true) }
+    val reveal = remember(selectedItemId) {
+        Animatable(if (isInitialSelection) 1f else 0f)
+    }
+    LaunchedEffect(selectedItemId) {
+        if (isInitialSelection) {
+            // Show the initial selection immediately, without animating.
+            isInitialSelection = false
         } else {
-            val spec = spring<Float>(
-                dampingRatio = 0.82f,
-                stiffness = Spring.StiffnessMediumLow,
+            reveal.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(
+                    durationMillis = 500,
+                    easing = FastOutSlowInEasing,
+                ),
             )
-            coroutineScope {
-                launch { leftAnim.animateTo(left, spec) }
-                launch { rightAnim.animateTo(right, spec) }
-                launch { centerAnim.animateTo(center, spec) }
-            }
         }
     }
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 18.dp),
+            .padding(vertical = 18.dp),
         contentAlignment = Alignment.Center,
     ) {
+        // Grow the pill by [BarWidthGrowth] on both sides, moving the extra space
+        // from the outer margin into the item row. The item area (and therefore
+        // the indicator geometry measured from it) stays exactly the same.
+        val currentBarWidth = (maxWidth - BarHorizontalPadding * 2).coerceAtLeast(0.dp)
+        val growthPerSide = currentBarWidth * (BarWidthGrowth / 2f)
+        val outerPadding = (BarHorizontalPadding - growthPerSide).coerceAtLeast(0.dp)
+        val rowPadding = (BarHorizontalPadding + ItemRowHorizontalPadding) - outerPadding
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(horizontal = outerPadding)
                 .height(BarHeight)
                 .onGloballyPositioned { coordinates ->
                     barLeftInRoot = coordinates.boundsInRoot().left
@@ -205,30 +223,30 @@ fun FloatingBottomNavBar(
 
             // Layer 2: custom selected notch (behind the content, above the pill).
             Canvas(modifier = Modifier.matchParentSize()) {
-                if (!indicatorReady) return@Canvas
-                val bodyWidth = (rightAnim.value - leftAnim.value).coerceAtLeast(1f)
+                val left = targetLeft ?: return@Canvas
+                val right = targetRight ?: return@Canvas
+                val centerX = targetCenterX ?: return@Canvas
                 val content = selectedContent ?: return@Canvas
                 drawSelectedNotch(
-                    centerX = centerAnim.value,
-                    bodyWidth = bodyWidth,
+                    centerX = centerX,
+                    bodyWidth = (right - left).coerceAtLeast(1f),
                     contentTop = content.top,
                     contentBottom = content.bottom,
                     accent = AccentColor,
                     strokeWidth = NotchStrokeWidth.toPx(),
+                    revealFraction = reveal.value,
                 )
             }
 
-            // Layers 3 & 4: logo and navigation items.
+            // Layer 3: navigation items.
             Row(
                 modifier = Modifier
                     .matchParentSize()
                     .clip(pill)
-                    .padding(horizontal = 8.dp),
+                    .padding(horizontal = rowPadding),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
             ) {
-                LogoButton(logo = logo, onLogoClick = onLogoClick)
-                Spacer(modifier = Modifier.width(2.dp))
                 items.forEach { item ->
                     Box(
                         modifier = Modifier
@@ -280,7 +298,11 @@ private fun DrawScope.drawSelectedNotch(
     contentBottom: Float,
     accent: Color,
     strokeWidth: Float,
+    revealFraction: Float,
 ) {
+    val fraction = revealFraction.coerceIn(0f, 1f)
+    if (fraction <= 0f) return
+
     val halfWidth = bodyWidth.coerceAtLeast(1f) * NotchWidthFactor
 
     // Vertical geometry comes from the item's measured content bounds so the
@@ -296,16 +318,21 @@ private fun DrawScope.drawSelectedNotch(
     val verticalRadius = (ellipseBaseY - topY).coerceAtLeast(1f)
 
     val leftFilletX = centerX - halfWidth - fillet
-    val leftTailStart = leftFilletX - bodyWidth * 0.5f
     val rightFilletX = centerX + halfWidth + fillet
-    val rightTailEnd =
-        (size.width - NotchTailEndInset.toPx()).coerceAtLeast(rightFilletX)
+    // Full indicator width, used to trim a small leading portion of the path.
+    val indicatorWidth = rightFilletX - leftFilletX
+    // Right inner boundary of the bar: the indicator must never cross it.
+    val maxTailEndX = size.width - NotchTailEndInset.toPx()
+    // Keep the existing trailing length, shorten it by [NotchTailLengthFactor],
+    // then clamp to the bar's right inner boundary (protects the last item).
+    val currentTailLength = (maxTailEndX - rightFilletX).coerceAtLeast(0f)
+    val shortenedTailEnd = rightFilletX + currentTailLength * NotchTailLengthFactor
+    val rightTailEnd = shortenedTailEnd.coerceAtMost(maxTailEndX)
 
     val path = Path().apply {
-        // Left tail.
-        moveTo(leftTailStart, baseY)
-        lineTo(leftFilletX, baseY)
-        // Left concave fillet: horizontal tail -> vertical ellipse side.
+        // Full curve; the reveal below trims the leading portion along the curve.
+        moveTo(leftFilletX, baseY)
+        // Left concave fillet: rises into the vertical ellipse side.
         quadraticTo(centerX - halfWidth, baseY, centerX - halfWidth, ellipseBaseY)
         // Elliptical upper-left quarter: vertical -> horizontal at the crown.
         cubicTo(
@@ -325,7 +352,31 @@ private fun DrawScope.drawSelectedNotch(
         lineTo(rightTailEnd, baseY)
     }
 
-    // Thin, slightly glowing red stroke.
+    // Reveal the path progressively along its real geometry. The leading
+    // [NotchLeftTrimFactor] of the curve is omitted so the visible red starts
+    // slightly later, without moving the ellipse or changing its shape.
+    val measure = PathMeasure(path.asAndroidPath(), false)
+    val length = measure.length
+    if (length <= 0f) return
+    val trimStart = (indicatorWidth * NotchLeftTrimFactor).coerceIn(0f, length)
+    val revealEnd = trimStart + (length - trimStart) * fraction
+    val visiblePath = if (trimStart <= 0f && fraction >= 1f) {
+        path
+    } else {
+        val segment = android.graphics.Path()
+        measure.getSegment(trimStart, revealEnd, segment, true)
+        segment.asComposePath()
+    }
+
+    drawIndicatorStroke(visiblePath, accent, strokeWidth)
+}
+
+/** Draws the thin red indicator stroke with its two soft glow passes. */
+private fun DrawScope.drawIndicatorStroke(
+    path: Path,
+    accent: Color,
+    strokeWidth: Float,
+) {
     drawPath(
         path = path,
         color = accent.copy(alpha = 0.07f),
@@ -345,44 +396,6 @@ private fun DrawScope.drawSelectedNotch(
             join = StrokeJoin.Round,
         ),
     )
-}
-
-@Composable
-private fun LogoButton(
-    logo: Painter?,
-    onLogoClick: (() -> Unit)?,
-) {
-    Box(
-        modifier = Modifier
-            .size(LogoSize)
-            .clip(CircleShape)
-            .background(LogoBackground)
-            .border(width = 1.dp, color = Color.White.copy(alpha = 0.10f), shape = CircleShape)
-            .then(
-                if (onLogoClick != null) {
-                    Modifier.clickable(onClick = onLogoClick)
-                } else {
-                    Modifier
-                }
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (logo != null) {
-            Image(
-                painter = logo,
-                contentDescription = "Logo",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-        } else {
-            Icon(
-                imageVector = PlaceholderLogo,
-                contentDescription = "Logo",
-                tint = Color.White.copy(alpha = 0.70f),
-                modifier = Modifier.size(22.dp),
-            )
-        }
-    }
 }
 
 @Composable
@@ -515,10 +528,8 @@ private val PreviewItems = listOf(
     NavItem(id = "saved", icon = PreviewSaved, label = "Saved"),
 )
 
-@Preview(showBackground = true, backgroundColor = 0xFF0D0D10, widthDp = 412, heightDp = 220)
 @Composable
-private fun FloatingBottomNavBarPreview() {
-    var selected by remember { mutableStateOf("home") }
+private fun FloatingBottomNavBarPreview(selectedId: String) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -527,24 +538,27 @@ private fun FloatingBottomNavBarPreview() {
     ) {
         FloatingBottomNavBar(
             items = PreviewItems,
-            selectedItemId = selected,
-            onItemSelect = { selected = it.id },
-            onLogoClick = {},
+            selectedItemId = selectedId,
+            onItemSelect = {},
             modifier = Modifier.align(Alignment.BottomCenter),
         )
     }
 }
 
-private val PlaceholderLogo: ImageVector = ImageVector.Builder(
-    name = "PlaceholderLogo",
-    defaultWidth = 24.dp,
-    defaultHeight = 24.dp,
-    viewportWidth = 24f,
-    viewportHeight = 24f,
-).addPath(
-    pathData = addPathNodes(
-        "M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" +
-            "M12 14c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
-    ),
-    fill = SolidColor(Color.White),
-).build()
+@Preview(name = "Home selected", showBackground = true, backgroundColor = 0xFF0D0D10, widthDp = 412, heightDp = 220)
+@Composable
+private fun FloatingBottomNavBarHomePreview() {
+    FloatingBottomNavBarPreview(selectedId = "home")
+}
+
+@Preview(name = "Create selected", showBackground = true, backgroundColor = 0xFF0D0D10, widthDp = 412, heightDp = 220)
+@Composable
+private fun FloatingBottomNavBarCreatePreview() {
+    FloatingBottomNavBarPreview(selectedId = "create")
+}
+
+@Preview(name = "Saved selected", showBackground = true, backgroundColor = 0xFF0D0D10, widthDp = 412, heightDp = 220)
+@Composable
+private fun FloatingBottomNavBarSavedPreview() {
+    FloatingBottomNavBarPreview(selectedId = "saved")
+}
