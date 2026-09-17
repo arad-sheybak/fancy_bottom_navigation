@@ -68,12 +68,16 @@ import androidx.compose.ui.unit.sp
  * @param id stable identifier used to match [FloatingBottomNavBar.selectedItemId].
  * @param icon leading glyph drawn for the destination.
  * @param label caption drawn under the icon.
+ * @param color accent used for this item while it is selected. It colors both
+ *   the selected indicator path and the selected icon tint, so the two always
+ *   match. Unselected items keep the default neutral tint.
  * @param badgeCount optional red notification badge. `null` or `<= 0` hides it.
  */
 data class NavItem(
     val id: String,
     val icon: ImageVector,
     val label: String,
+    val color: Color,
     val badgeCount: Int? = null,
 )
 
@@ -168,6 +172,9 @@ fun FloatingBottomNavBar(
     // The right-side end trim only applies when the trailing item is selected,
     // mirroring the always-on leading trim at the left side.
     val trimRightEdge = items.lastOrNull()?.id == selectedItemId
+    // Single source of truth for the selected accent: the selected item's own
+    // color drives both the indicator stroke and its icon tint.
+    val selectedColor = items.firstOrNull { it.id == selectedItemId }?.color ?: AccentColor
 
     // Path-reveal animation. The geometry is fixed at the selected item; only the
     // amount of the red Path that has been drawn changes. A new Animatable is
@@ -242,7 +249,7 @@ fun FloatingBottomNavBar(
                     bodyWidth = (right - left).coerceAtLeast(1f),
                     contentTop = content.top,
                     contentBottom = content.bottom,
-                    accent = AccentColor,
+                    accent = selectedColor,
                     strokeWidth = NotchStrokeWidth.toPx(),
                     revealFraction = reveal.value,
                     trimRightEdge = trimRightEdge,
@@ -276,7 +283,7 @@ fun FloatingBottomNavBar(
                         NavBarItemContent(
                             item = item,
                             selected = item.id == selectedItemId,
-                            accent = AccentColor,
+                            badgeColor = AccentColor,
                             onContentPositioned = { rect -> contentBounds[item.id] = rect },
                             onIconPositioned = { centerXInRoot ->
                                 iconCentersInRoot[item.id] = centerXInRoot
@@ -422,12 +429,12 @@ private fun DrawScope.drawIndicatorStroke(
 private fun NavBarItemContent(
     item: NavItem,
     selected: Boolean,
-    accent: Color,
+    badgeColor: Color,
     onContentPositioned: (Rect) -> Unit,
     onIconPositioned: (Float) -> Unit,
 ) {
     val iconColor by animateColorAsState(
-        targetValue = if (selected) accent else UnselectedIconColor,
+        targetValue = if (selected) item.color else UnselectedIconColor,
         label = "navIconColor",
     )
     val labelColor by animateColorAsState(
@@ -457,7 +464,7 @@ private fun NavBarItemContent(
             if (count != null && count > 0) {
                 NotificationBadge(
                     count = count,
-                    accent = accent,
+                    accent = badgeColor,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .offset(x = 7.dp, y = (-5).dp),
@@ -541,11 +548,17 @@ private val PreviewSaved = previewIcon(
 )
 
 private val PreviewItems = listOf(
-    NavItem(id = "home", icon = PreviewHome, label = "Home"),
-    NavItem(id = "search", icon = PreviewSearch, label = "Search"),
-    NavItem(id = "create", icon = PreviewCreate, label = "Create"),
-    NavItem(id = "inbox", icon = PreviewInbox, label = "Inbox", badgeCount = 3),
-    NavItem(id = "saved", icon = PreviewSaved, label = "Saved"),
+    NavItem(id = "home", icon = PreviewHome, label = "Home", color = Color(0xFFE53946)),
+    NavItem(id = "search", icon = PreviewSearch, label = "Search", color = Color(0xFF3D9DF6)),
+    NavItem(id = "create", icon = PreviewCreate, label = "Create", color = Color(0xFF8B5CF6)),
+    NavItem(
+        id = "inbox",
+        icon = PreviewInbox,
+        label = "Inbox",
+        color = Color(0xFFF59E0B),
+        badgeCount = 3,
+    ),
+    NavItem(id = "saved", icon = PreviewSaved, label = "Saved", color = Color(0xFF10B981)),
 )
 
 @Composable

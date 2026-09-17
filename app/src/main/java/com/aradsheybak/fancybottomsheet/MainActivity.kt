@@ -75,11 +75,17 @@ private val SavedIcon = materialIcon(
 )
 
 private val DemoItems = listOf(
-    NavItem(id = "home", icon = HomeIcon, label = "Home"),
-    NavItem(id = "search", icon = SearchIcon, label = "Search"),
-    NavItem(id = "create", icon = CreateIcon, label = "Create"),
-    NavItem(id = "inbox", icon = InboxIcon, label = "Inbox", badgeCount = 3),
-    NavItem(id = "saved", icon = SavedIcon, label = "Saved"),
+    NavItem(id = "home", icon = HomeIcon, label = "Home", color = Color(0xFFE53946)),
+    NavItem(id = "search", icon = SearchIcon, label = "Search", color = Color(0xFF3D9DF6)),
+    NavItem(id = "create", icon = CreateIcon, label = "Create", color = Color(0xFF8B5CF6)),
+    NavItem(
+        id = "inbox",
+        icon = InboxIcon,
+        label = "Inbox",
+        color = Color(0xFFF59E0B),
+        badgeCount = 3,
+    ),
+    NavItem(id = "saved", icon = SavedIcon, label = "Saved", color = Color(0xFF10B981)),
 )
 
 class MainActivity : ComponentActivity() {
