@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Fancy Bottom Navigation — LinkedIn Document</title>
+<style>
+  @page { size: 1080px 1350px; margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #000; }
+  body {
+    font-family: "Segoe UI", Roboto, "Helvetica Neue", system-ui, sans-serif;
+    color: #F5F5F7;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .slide {
+    position: relative;
+    width: 1080px;
+    height: 1350px;
+    overflow: hidden;
+    padding: 80px 72px;
+    background:
+      radial-gradient(1200px 700px at 85% -10%, rgba(229,57,70,0.18), transparent 60%),
+      radial-gradient(900px 600px at -10% 110%, rgba(61,157,246,0.14), transparent 60%),
+      linear-gradient(180deg, #0B0B0F 0%, #141419 100%);
+    page-break-after: always;
+    display: flex;
+    flex-direction: column;
+  }
+  .slide:last-child { page-break-after: auto; }
+  .eyebrow {
+    font-size: 22px;
+    letter-spacing: 6px;
+    font-weight: 600;
+    color: #E53946;
+    text-transform: uppercase;
+  }
+  h1 { font-size: 76px; line-height: 1.04; font-weight: 800; letter-spacing: -2px; margin-top: 22px; }
+  h2 { font-size: 58px; line-height: 1.06; font-weight: 800; letter-spacing: -1.4px; margin-top: 16px; }
+  .sub { font-size: 30px; line-height: 1.45; color: #B8B8C2; margin-top: 26px; max-width: 900px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 34px; }
+  .chip {
+    font-size: 22px;
+    font-weight: 600;
+    color: #D8D8DE;
+    border: 1.5px solid #34343E;
+    background: rgba(255,255,255,0.03);
+    border-radius: 999px;
+    padding: 12px 24px;
+  }
+  .chip.accent { color: #fff; border-color: rgba(229,57,70,0.7); background: rgba(229,57,70,0.16); }
+  .rule { height: 1px; background: #2A2A32; margin: 40px 0; }
+  ul { list-style: none; margin-top: 30px; }
+  li {
+    position: relative;
+    font-size: 29px;
+    line-height: 1.5;
+    color: #D5D5DC;
+    padding-left: 46px;
+    margin-bottom: 22px;
+  }
+  li::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 15px;
+    width: 16px; height: 16px;
+    border-radius: 5px;
+    background: #E53946;
+    transform: rotate(45deg);
+  }
+  li b { color: #fff; }
+  .mono {
+    font-family: "Cascadia Code", Consolas, "Courier New", monospace;
+    font-size: 21px;
+    line-height: 1.6;
+    color: #E7E7EC;
+    background: #101015;
+    border: 1px solid #2A2A32;
+    border-radius: 18px;
+    padding: 26px 30px;
+    white-space: pre;
+    overflow: hidden;
+  }
+  .mono .k { color: #FF6B7A; }
+  .mono .c { color: #6E6E7A; }
+  .mono .s { color: #7ED6A5; }
+  .imgcard {
+    background: #0E0E13;
+    border: 1px solid #2A2A32;
+    border-radius: 26px;
+    overflow: hidden;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+  }
+  .imgcard img { display: block; width: 100%; }
+  .grow { flex: 1; }
+  .cover-art { margin-top: 50px; }
+  .two { display: flex; gap: 32px; align-items: stretch; }
+  .col { flex: 1; }
+  .stat { font-size: 26px; color: #9A9AA5; margin-top: 14px; }
+  .kicker { text-transform: uppercase; letter-spacing: 4px; font-size: 20px; font-weight: 700; color: #8A8A94; }
+  .footer {
+    position: absolute; left: 72px; right: 72px; bottom: 46px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 22px; color: #6E6E7A;
+  }
+  .pillrow { display: flex; gap: 12px; flex-wrap: wrap; }
+  .mini {
+    font-size: 20px; color: #B8B8C2;
+    border: 1px solid #2E2E36; border-radius: 12px;
+    padding: 10px 16px; background: rgba(255,255,255,0.02);
+  }
+  .bigbar { display: flex; align-items: center; gap: 22px; margin-bottom: 26px; }
+  .dot { width: 20px; height: 20px; border-radius: 50%; flex: 0 0 auto; }
+  .cta {
+    background: linear-gradient(135deg, rgba(229,57,70,0.22), rgba(61,157,246,0.16));
+    border: 1.5px solid rgba(229,57,70,0.5);
+    border-radius: 26px;
+    padding: 38px 40px;
+    margin-top: 34px;
+  }
+  .cta h3 { font-size: 38px; font-weight: 800; letter-spacing: -0.6px; }
+  .cta p { font-size: 27px; line-height: 1.5; color: #D5D5DC; margin-top: 14px; }
+  .url { color: #7EC8FF; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<!-- 1. Cover -->
+<section class="slide">
+  <div class="eyebrow">Jetpack Compose · Navigation 3</div>
+  <h1>A bottom navigation<br/>indicator that gets<br/>hand-drawn.</h1>
+  <div class="sub">Organic Bézier curves, a path-reveal animation and one accent per destination — all in pure Compose Canvas.</div>
+  <div class="chips">
+    <span class="chip accent">Compose Canvas</span>
+    <span class="chip">PathMeasure</span>
+    <span class="chip">Navigation 3</span>
+    <span class="chip">Kotlin 2.2</span>
+  </div>
+  <div class="grow"></div>
+  <div class="imgcard cover-art">
+    <img src="../showcase.png" alt="App showcase" />
+  </div>
+</section>
+
+<!-- 2. The idea -->
+<section class="slide">
+  <div class="kicker">01 — The idea</div>
+  <h2>Most bottom bars slide.<br/>This one is drawn.</h2>
+  <div class="sub">Instead of fading an icon or sliding a highlight, the selection is a single continuous stroke: an elliptical crown that wraps the active icon and trails off horizontally into the bar.</div>
+  <div class="grow"></div>
+  <div class="imgcard"><img src="../bar_2.png" alt="Create selected" /></div>
+  <div class="stat">One Path · no corners · no flat top · no straight vertical edges</div>
+</section>
+
+<!-- 3. Geometry -->
+<section class="slide">
+  <div class="kicker">02 — Geometry</div>
+  <h2>Anatomy of the indicator.</h2>
+  <ul>
+    <li><b>Elliptical crown</b> — two cubic Béziers with the quarter-arc constant K = 4/3(√2−1) ≈ <b>0.5523</b>.</li>
+    <li><b>Concave fillets</b> blend the ellipse sides into flat horizontal tails, so the curve never kinks.</li>
+    <li>The ellipse is centered on the <b>measured icon center</b> — never the item or label center.</li>
+    <li>Ellipse width = <b>0.62 ×</b> the selected cell, height from the measured content rect with <b>0.22</b> vertical padding.</li>
+  </ul>
+  <div class="grow"></div>
+  <div class="imgcard" style="height:430px;display:flex;align-items:center;justify-content:center;">
+    <img src="../arch_zoom.png" style="height:100%;width:auto;max-width:100%;" />
+  </div>
+</section>
+
+<!-- 4. Animation -->
+<section class="slide">
+  <div class="kicker">03 — Animation</div>
+  <h2>Path-reveal, not fade.</h2>
+  <div class="two">
+    <div class="col">
+      <ul>
+        <li>Geometry is fixed at the selected item; only the <b>drawn length</b> animates.</li>
+        <li><b>PathMeasure.getSegment()</b> walks the real path geometry.</li>
+        <li>500 ms <b>FastOutSlowInEasing</b>; a fresh <b>Animatable</b> per selection cancels any in-flight reveal.</li>
+        <li>The initial selection renders instantly — no flash on first frame.</li>
+      </ul>
+    </div>
+    <div class="col">
+      <div class="mono"><span class="c">// new Animatable per selection</span>
+val reveal = remember(selectedItemId) {
+    Animatable(<span class="s">0f</span>)
+}
+LaunchedEffect(selectedItemId) {
+    reveal.animateTo(
+        <span class="s">1f</span>, tween(<span class="s">500</span>, FastOutSlowInEasing)
+    )
+}</div>
+    </div>
+  </div>
+  <div class="grow"></div>
+  <div class="imgcard"><img src="../states_grid.png" alt="All states" /></div>
+</section>
+
+<!-- 5. Color -->
+<section class="slide">
+  <div class="kicker">04 — Color</div>
+  <h2>One accent, everywhere.</h2>
+  <div class="sub">Each destination owns a color. That single value drives <b>both</b> the indicator stroke and the selected icon tint, so they can never drift apart. Unselected items stay neutral.</div>
+  <div class="grow"></div>
+  <div class="bigbar"><div class="dot" style="background:#E53946"></div><div class="stat" style="margin:0">Home &nbsp;·&nbsp; #E53946</div></div>
+  <div class="bigbar"><div class="dot" style="background:#3D9DF6"></div><div class="stat" style="margin:0">Search &nbsp;·&nbsp; #3D9DF6</div></div>
+  <div class="bigbar"><div class="dot" style="background:#8B5CF6"></div><div class="stat" style="margin:0">Create &nbsp;·&nbsp; #8B5CF6</div></div>
+  <div class="bigbar"><div class="dot" style="background:#F59E0B"></div><div class="stat" style="margin:0">Inbox &nbsp;·&nbsp; #F59E0B &nbsp;(+ badge)</div></div>
+  <div class="bigbar"><div class="dot" style="background:#10B981"></div><div class="stat" style="margin:0">Saved &nbsp;·&nbsp; #10B981</div></div>
+  <div class="grow"></div>
+  <div class="mono">data class NavItem(
+    val id: String,
+    val icon: ImageVector,
+    val label: String,
+    val <span class="k">color</span>: Color,          <span class="c">// stroke + icon tint</span>
+    val badgeCount: Int? = null,
+)</div>
+</section>
+
+<!-- 6. Tails -->
+<section class="slide">
+  <div class="kicker">05 — Details</div>
+  <h2>Tail budget &amp; edge trimming.</h2>
+  <ul>
+    <li>The horizontal line budget <b>transfers from right to left</b> as the selection moves right, so their sum stays constant.</li>
+    <li>The <b>first</b> item keeps only the right tail, the <b>last</b> only the left — the ellipse itself never moves.</li>
+    <li>A leading <b>8%</b> of the curve is always trimmed; the trailing <b>8%</b> is trimmed only on the last item.</li>
+    <li>Three stacked stroke passes (alpha 0.07 / 0.16 / 1.0) create the soft neon glow.</li>
+  </ul>
+  <div class="grow"></div>
+  <div class="imgcard"><img src="../bar_4.png" alt="Saved selected" /></div>
+</section>
+
+<!-- 7. Navigation 3 -->
+<section class="slide">
+  <div class="kicker">06 — Architecture</div>
+  <h2>Wired to Navigation 3.</h2>
+  <div class="two">
+    <div class="col">
+      <ul>
+        <li><b>NavDisplay + NavBackStack + entryProvider</b> drive the screens.</li>
+        <li>Tapping a tab clears the stack and pushes one route — single-level tabs.</li>
+        <li>A custom <b>listSaver</b> persists the back stack across process death <b>without kotlinx.serialization</b>.</li>
+        <li>The bar owns no navigation state — the selected id is passed in.</li>
+      </ul>
+    </div>
+    <div class="col">
+      <div class="mono"><span class="k">sealed interface</span> AppNavKey : NavKey
+<span class="k">data object</span> HomeRoute : AppNavKey
+<span class="k">data object</span> SearchRoute : AppNavKey
+<span class="k">data object</span> CreateRoute : AppNavKey
+<span class="k">data object</span> InboxRoute : AppNavKey
+<span class="k">data object</span> SavedRoute : AppNavKey</div>
+      <div class="pillrow" style="margin-top:22px">
+        <span class="mini">NavDisplay</span>
+        <span class="mini">rememberSaveable</span>
+        <span class="mini">listSaver</span>
+        <span class="mini">edge-to-edge</span>
+      </div>
+    </div>
+  </div>
+  <div class="grow"></div>
+  <div class="imgcard"><img src="../bar_0.png" alt="Nav bar closeup" /></div>
+</section>
+
+<!-- 8. Stack + CTA -->
+<section class="slide">
+  <div class="kicker">Tech stack</div>
+  <h2>Built with</h2>
+  <div class="pillrow" style="margin-top:34px">
+    <span class="mini">Kotlin 2.2.10</span>
+    <span class="mini">Compose BOM 2026.02.01</span>
+    <span class="mini">Navigation 3 · 1.1.6</span>
+    <span class="mini">Material 3</span>
+    <span class="mini">AGP 9.4</span>
+    <span class="mini">minSdk 26 · targetSdk 37</span>
+    <span class="mini">Zero icon libraries</span>
+    <span class="mini">100% Kotlin</span>
+  </div>
+  <div class="rule"></div>
+  <div class="sub" style="margin-top:0">Icons are compiled from raw SVG path strings at runtime, so the whole thing ships with no extra icon dependency.</div>
+  <div class="grow"></div>
+  <div class="cta">
+    <h3>Full source is on GitHub →</h3>
+    <p class="url">github.com/arad-sheybak/fancy_bottom_navigation</p>
+    <p><b>Star it if you like it</b>, and tell me in the comments:<br/>what should I build next — a curved app bar or a morphing FAB?</p>
+  </div>
+  <div class="footer">
+    <span>Fancy Bottom Navigation</span>
+    <span>Made with Jetpack Compose</span>
+  </div>
+</section>
+
+</body>
+</html>
